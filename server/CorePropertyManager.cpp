@@ -40,6 +40,7 @@
 #include "rulesets/AreaProperty.h"
 #include "rulesets/VisibilityProperty.h"
 #include "rulesets/Character.h"
+#include "rulesets/FrozenProperty.h"
 
 #include "common/Eat.h"
 #include "common/Burn.h"
@@ -304,6 +305,7 @@ CorePropertyManager::CorePropertyManager()
     m_propertyFactories["spawn"] = new PropertyFactory<SpawnProperty>;
     m_propertyFactories["area"] = new PropertyFactory<AreaProperty>;
     m_propertyFactories["visibility"] = new PropertyFactory<VisibilityProperty>;
+    m_propertyFactories["frozen"] = new PropertyFactory<FrozenProperty>;
     
     HandlerMap terrainModHandles;
     terrainModHandles[Atlas::Objects::Operation::MOVE_NO] = terrainmod_moveHandler;
