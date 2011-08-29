@@ -780,3 +780,21 @@ class activate_device(Goal):
            me.remove_knowledge('focus', self.what)
            return
         return Operation('actuate', Operation('chop', Entity(something)))
+
+######################## REPORT GOALS (For debugging) #######################
+    
+class report_goals(Goal):
+    """Report current goals each tick, for debug purposes."""
+    def __init__(self):
+        Goal.__init__(self, "report goals", self.active, [self.report])
+    def active(self, me):
+        return False
+    def report(self, me):
+        res=Oplist()
+        for g in me.goals[:]:
+            if (g != self):
+                info = g.info()
+                print info
+                res.append(Operation("talk",Entity(say=info)))
+        return res
+
