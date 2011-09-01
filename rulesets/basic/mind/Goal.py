@@ -22,6 +22,9 @@ class Goal:
         self.time=time
         self.debug=debug
         self.vars=[]
+        #keeps track of whether the goal is fulfilled or not
+        #this is mainly of use for inspection and diagnosis
+        self.is_fulfilled=0
         #any subgoal/function/method can set this and 
         #it's checked at start of check_goal_rec
         #and NPCMind.py fulfill_goals uses it too to remove goals from list
@@ -37,6 +40,34 @@ class Goal:
             if var: var=var+","
             var=var+`getattr(self,v)`
         return name+"("+var+")"
+    
+    def extendedInfo(self, indent=1):
+        """provides extended information about the goal,
+        as well as all subgoals"""
+        name=self.__class__.__name__
+        if name=="Goal":
+            res = name+"("+`self.desc`+") : "
+            if (self.is_fulfilled):
+                res = res + 'fulfilled'
+            else:
+                res = res + 'not fulfilled'
+            for sg in self.subgoals:
+                if type(sg)!=FunctionType and type(sg)!=MethodType:
+                    res = res + "\n" + ("\t" * indent) + sg.extendedInfo(indent+1)
+            return res
+        var=""
+        for v in self.vars:
+            if var: var=var+","
+            var=var+`getattr(self,v)`
+        res = name+"("+var+") : "
+        if (self.is_fulfilled):
+            res = res + 'fulfilled'
+        else:
+            res = res + 'not fulfilled'
+        for sg in self.subgoals:
+            if type(sg)!=FunctionType and type(sg)!=MethodType:
+                res = res + "\n" + ("\t" * indent) + sg.extendedInfo(indent+1)
+        return res
     def check_goal(self, me, time):
         "executes goal, see top of file"
         if self.debug:
@@ -56,7 +87,11 @@ class Goal:
         if self.time and not time.is_now(self.time): return res,deb
         if self.debug:
             log.thinking("\t"*depth+"GOAL: bef fulfilled: "+self.desc+" "+`self.fulfilled`)
-        if self.fulfilled(me): return res,deb
+        if self.fulfilled(me): 
+            self.is_fulfilled = 1
+            return res,deb
+        else:
+            self.is_fulfilled = 0
         for sg in self.subgoals:
             if type(sg)==FunctionType or type(sg)==MethodType:
                 res=sg(me)

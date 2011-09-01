@@ -793,8 +793,8 @@ class report_goals(Goal):
         res=Oplist()
         for g in me.goals[:]:
             if (g != self):
-                info = g.info()
-                print info
+                info = g.extendedInfo()
+                print "goal status entity " + me.id + "\n" + info
                 res.append(Operation("talk",Entity(say=info)))
         return res
 
