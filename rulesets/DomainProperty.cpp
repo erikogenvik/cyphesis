@@ -101,6 +101,7 @@ void DomainProperty::scheduleTick(LocatedEntity& entity, float secondsFromNow)
     Atlas::Objects::Operation::Tick tickOp;
     tickOp->setTo(entity.getId());
     tickOp->setFutureSeconds(secondsFromNow);
+    tickOp->setStamp(secondsFromNow);
     tickOp->setArgs1(tick_arg);
 
     entity.sendWorld(tickOp);
@@ -116,7 +117,7 @@ HandlerResult DomainProperty::tick_handler(LocatedEntity * entity, const Operati
     if (!op->getArgs().empty() && op->getArgs().front()->getName() == "domain") {
         Domain* domain = sInstanceState.getState(entity);
         if (domain) {
-            float timeUntilNextTick = domain->tick(op->getFutureSeconds());
+            float timeUntilNextTick = domain->tick(op->getStamp());
             if (timeUntilNextTick > 0) {
                 scheduleTick(*entity, timeUntilNextTick);
             }

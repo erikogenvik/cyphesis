@@ -1350,7 +1350,7 @@ void Character::mindMoveOperation(const Operation & op, OpVector & res)
     // Movement within current loc. Work out the speed and stuff and
     // use movement object to track movement.
 
-    Location ret_location;
+    Location ret_location = m_location;
 //    int ret = m_movement.getUpdatedLocation(ret_location);
 //    if (ret) {
 //        ret_location = m_location;
