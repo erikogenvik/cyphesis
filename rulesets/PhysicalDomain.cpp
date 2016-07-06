@@ -72,8 +72,7 @@ using Atlas::Objects::Operation::Disappearance;
 using Atlas::Objects::Operation::Wield;
 using Atlas::Objects::Operation::Unseen;
 
-class PhysicalDomain::PhysicalMotionState: public btMotionState
-{
+class PhysicalDomain::PhysicalMotionState: public btMotionState {
     public:
         btRigidBody& m_rigidBody;
         LocatedEntity& m_entity;
@@ -84,10 +83,15 @@ class PhysicalDomain::PhysicalMotionState: public btMotionState
         void* m_userPointer;
         WFMath::Point<3> m_lastPosition;
 
-        PhysicalMotionState(btRigidBody& rigidBody, LocatedEntity& entity, PhysicalDomain& domain, const btTransform& startTrans, const btTransform& centerOfMassOffset =
-                btTransform::getIdentity()) :
-                m_rigidBody(rigidBody), m_entity(entity), m_domain(domain), m_WorldTrans(startTrans), m_centerOfMassOffset(centerOfMassOffset), m_startWorldTrans(startTrans), m_userPointer(
-                        nullptr), m_lastPosition(m_entity.m_location.pos())
+        PhysicalMotionState(btRigidBody& rigidBody, LocatedEntity& entity, PhysicalDomain& domain, const btTransform& startTrans, const btTransform& centerOfMassOffset = btTransform::getIdentity()) :
+                        m_rigidBody(rigidBody),
+                        m_entity(entity),
+                        m_domain(domain),
+                        m_WorldTrans(startTrans),
+                        m_centerOfMassOffset(centerOfMassOffset),
+                        m_startWorldTrans(startTrans),
+                        m_userPointer(nullptr),
+                        m_lastPosition(m_entity.m_location.pos())
 
         {
         }
@@ -96,23 +100,23 @@ class PhysicalDomain::PhysicalMotionState: public btMotionState
         virtual void getWorldTransform(btTransform& centerOfMassWorldTrans) const
         {
             debug_print("getWorldTransform: "<< m_entity.describeEntity());
-            if (m_entity.m_location.pos().isValid()) {
-                centerOfMassWorldTrans.setOrigin(Convert::toBullet(m_lastPosition));
-//
-//
-//                centerOfMassWorldTrans = m_WorldTrans * m_centerOfMassOffset.inverse();
-            }
-            if (m_entity.m_location.orientation().isValid()) {
-                centerOfMassWorldTrans.setRotation(Convert::toBullet(m_entity.m_location.m_orientation));
-            }
+            centerOfMassWorldTrans = m_WorldTrans * m_centerOfMassOffset.inverse();
+//            if (m_entity.m_location.pos().isValid()) {
+//                centerOfMassWorldTrans.setOrigin(Convert::toBullet(m_lastPosition));
+////
+////
+////                centerOfMassWorldTrans = m_WorldTrans * m_centerOfMassOffset.inverse();
+//            }
+//            if (m_entity.m_location.orientation().isValid()) {
+//                centerOfMassWorldTrans.setRotation(Convert::toBullet(m_entity.m_location.m_orientation));
+//            }
         }
 
         ///synchronizes world transform from physics to user
         ///Bullet only calls the update of worldtransform for active objects
         virtual void setWorldTransform(const btTransform& centerOfMassWorldTrans)
         {
-            debug_print(
-                    "setWorldTransform: "<< m_entity.describeEntity() << " (" << centerOfMassWorldTrans.getOrigin().x() << "," << centerOfMassWorldTrans.getOrigin().y() << "," << centerOfMassWorldTrans.getOrigin().z() << ")");
+            debug_print("setWorldTransform: "<< m_entity.describeEntity() << " (" << centerOfMassWorldTrans.getOrigin().x() << "," << centerOfMassWorldTrans.getOrigin().y() << "," << centerOfMassWorldTrans.getOrigin().z() << ")");
 //            m_WorldTrans = centerOfMassWorldTrans * m_centerOfMassOffset;
             m_WorldTrans = centerOfMassWorldTrans;
 
@@ -124,8 +128,10 @@ class PhysicalDomain::PhysicalMotionState: public btMotionState
             m_lastPosition = m_entity.m_location.m_pos;
 
             WFMath::Vector<3> wfBodyVelocity = delta * 15.0;
-            if (!WFMath::Equal(wfBodyVelocity.x(), m_entity.m_location.m_velocity.x()) || !WFMath::Equal(wfBodyVelocity.y(), m_entity.m_location.m_velocity.y())) {
-                log(INFO, "Change direction.");
+            if (!WFMath::Equal(wfBodyVelocity.x(), m_entity.m_location.m_velocity.x(), 0.01f) || !WFMath::Equal(wfBodyVelocity.y(), m_entity.m_location.m_velocity.y(), 0.01f)) {
+                debug_print("Change direction " << wfBodyVelocity);
+
+                m_entity.m_location.m_velocity = wfBodyVelocity;
 
                 Move m;
                 Anonymous move_arg;
@@ -152,20 +158,23 @@ class PhysicalDomain::PhysicalMotionState: public btMotionState
 };
 
 PhysicalDomain::PhysicalDomain(LocatedEntity& entity) :
-        Domain(entity),
-        //default config for now
-        m_collisionConfiguration(new btDefaultCollisionConfiguration()), m_dispatcher(new btCollisionDispatcher(m_collisionConfiguration)), m_constraintSolver(
-                new btSequentialImpulseConstraintSolver()),
-        //Use a dynamic broadphase; this might be worth revisiting for optimizations
-        m_broadphase(new btDbvtBroadphase()), m_dynamicsWorld(new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_constraintSolver, m_collisionConfiguration)), m_ticksPerSecond(
-                15)
+                Domain(entity),
+                //default config for now
+                m_collisionConfiguration(new btDefaultCollisionConfiguration()),
+                m_dispatcher(new btCollisionDispatcher(m_collisionConfiguration)),
+                m_constraintSolver(new btSequentialImpulseConstraintSolver()),
+                //Use a dynamic broadphase; this might be worth revisiting for optimizations
+                m_broadphase(new btDbvtBroadphase()),
+                m_dynamicsWorld(new btDiscreteDynamicsWorld(m_dispatcher, m_broadphase, m_constraintSolver, m_collisionConfiguration)),
+                m_ticksPerSecond(15)
 {
 
     //TODO: replace with proper terrain; for now we'll just use a plane
     m_groundCollisionShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
-    btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 4, 0)));
+    btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
     btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(.0f, motionState, m_groundCollisionShape, btVector3(0, 0, 0));
     m_groundBody = new btRigidBody(rigidBodyCI);
+    m_dynamicsWorld->addRigidBody(m_groundBody);
 
     //m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
 
@@ -244,8 +253,7 @@ bool PhysicalDomain::isEntityVisibleFor(const LocatedEntity& observingEntity, co
     return false;
 }
 
-void PhysicalDomain::calculateVisibility(std::vector<Root>& appear, std::vector<Root>& disappear, Anonymous& this_ent, const LocatedEntity& parent,
-        const LocatedEntity& moved_entity, const Location& old_loc, OpVector & res) const
+void PhysicalDomain::calculateVisibility(std::vector<Root>& appear, std::vector<Root>& disappear, Anonymous& this_ent, const LocatedEntity& parent, const LocatedEntity& moved_entity, const Location& old_loc, OpVector & res) const
 {
 
     float fromSquSize = moved_entity.m_location.squareBoxSize();
@@ -262,8 +270,7 @@ void PhysicalDomain::calculateVisibility(std::vector<Root>& appear, std::vector<
         }
 
         assert(other != nullptr);
-        float old_dist = squareDistance(other->m_location.pos(), old_pos), new_dist = squareDistance(other->m_location.pos(), new_pos), squ_size =
-                other->m_location.squareBoxSize();
+        float old_dist = squareDistance(other->m_location.pos(), old_pos), new_dist = squareDistance(other->m_location.pos(), new_pos), squ_size = other->m_location.squareBoxSize();
 
         // Build appear and disappear lists, and send disappear operations
         // to perceptive entities saying that we are disappearing
@@ -311,7 +318,7 @@ void PhysicalDomain::calculateVisibility(std::vector<Root>& appear, std::vector<
 
 void PhysicalDomain::processVisibilityForMovedEntity(const LocatedEntity& moved_entity, const Location& old_loc, OpVector & res)
 {
-    debug_print("testing range for " << moved_entity.describeEntity());
+    debug_print("PhysicalDomain::processVisibilityForMovedEntity testing range for " << moved_entity.describeEntity());
     std::vector<Root> appear, disappear;
 
     Anonymous this_ent;
@@ -473,7 +480,6 @@ float PhysicalDomain::checkCollision(LocatedEntity& entity, CollisionData& colli
 
 void PhysicalDomain::addEntity(LocatedEntity& entity)
 {
-    debug_print("PhysicsDomain adding entity " << entity.describeEntity());
     assert(m_entries.find(entity.getIntId()) == m_entries.end());
 
     BulletEntry entry;
@@ -516,6 +522,8 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
             inertia // local inertia
             );
 
+    debug_print("PhysicsDomain adding entity " << entity.describeEntity() << " with mass " << mass << " and inertia ("<< inertia.x() << ","<< inertia.y() << ","<< inertia.z() << ")");
+
     entry.rigidBody = new btRigidBody(rigidBodyCI);
     entry.rigidBody->setAngularFactor(0); //TODO: only apply for characters
 
@@ -523,8 +531,11 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
     if (propelProp && propelProp->data().isValid()) {
         entry.rigidBody->setLinearVelocity(Convert::toBullet(propelProp->data()));
     }
+
+    //entry.rigidBody->setLinearVelocity(btVector3(100, 0, 0));
+
     m_dynamicsWorld->addRigidBody(entry.rigidBody);
-    entry.rigidBody->activate();
+    //entry.rigidBody->activate();
 
     m_entries.insert(std::make_pair(entity.getIntId(), entry));
 
@@ -532,6 +543,7 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
 
 void PhysicalDomain::removeEntity(LocatedEntity& entity)
 {
+    debug_print("PhysicalDomain::removeEntity " << entity.describeEntity());
     auto I = m_entries.find(entity.getIntId());
     assert(I != m_entries.end());
     if (I->second.rigidBody) {
@@ -564,15 +576,20 @@ void PhysicalDomain::applyTransform(LocatedEntity& entity, const WFMath::Quatern
 
 void PhysicalDomain::setVelocity(LocatedEntity& entity, const WFMath::Vector<3>& velocity)
 {
-    debug_print("PhysicalDomain::setVelocity " << entity.describeEntity());
+    debug_print("PhysicalDomain::setVelocity " << entity.describeEntity() << " " << velocity);
     auto I = m_entries.find(entity.getIntId());
     assert(I != m_entries.end());
     auto& entry = I->second;
     if (entry.rigidBody) {
         if (velocity.isValid()) {
-            entry.rigidBody->applyCentralForce(Convert::toBullet(velocity));
+            if (velocity != WFMath::Vector<3>::ZERO()) {
+                entry.rigidBody->activate(true);
+            }
+            entry.rigidBody->setLinearVelocity(Convert::toBullet(velocity * 10.0f));
+//            entry.rigidBody->applyCentralForce(Convert::toBullet(velocity * 10.0f));
         } else {
-            entry.rigidBody->applyCentralForce(btVector3(0, 0, 0));
+            entry.rigidBody->setLinearVelocity(btVector3(0, 0, 0));
+//            entry.rigidBody->applyCentralForce(btVector3(0, 0, 0));
         }
     }
 }
