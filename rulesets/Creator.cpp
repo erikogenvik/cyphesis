@@ -41,7 +41,7 @@ using Atlas::Objects::Operation::Sight;
 using Atlas::Objects::Operation::Unseen;
 using Atlas::Objects::Entity::Anonymous;
 
-static const bool debug_flag = true;
+static const bool debug_flag = false;
 
 Creator::Creator(const std::string & id, long intId) :
          Character(id, intId)
