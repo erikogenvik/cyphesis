@@ -36,6 +36,10 @@
 #include "common/const.h"
 #include "common/Unseen.h"
 #include "common/log.h"
+#include "common/TypeNode.h"
+
+#include <Mercator/Terrain.h>
+#include <Mercator/Segment.h>
 
 #include <Atlas/Objects/Operation.h>
 #include <Atlas/Objects/Anonymous.h>
@@ -43,6 +47,7 @@
 #include <bullet/btBulletDynamicsCommon.h>
 #include <bullet/BulletCollision/CollisionShapes/btBoxShape.h>
 #include <bullet/BulletCollision/CollisionShapes/btStaticPlaneShape.h>
+#include <bullet/BulletCollision/CollisionShapes/btHeightfieldTerrainShape.h>
 
 #include <iostream>
 #include <unordered_set>
@@ -170,14 +175,37 @@ PhysicalDomain::PhysicalDomain(LocatedEntity& entity) :
 {
 
     //TODO: replace with proper terrain; for now we'll just use a plane
-    m_groundCollisionShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
-    btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-    btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(.0f, motionState, m_groundCollisionShape, btVector3(0, 0, 0));
-    m_groundBody = new btRigidBody(rigidBodyCI);
-    m_dynamicsWorld->addRigidBody(m_groundBody);
+//    m_groundCollisionShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
+//    btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+//    btRigidBody::btRigidBodyConstructionInfo rigidBodyCI(.0f, motionState, m_groundCollisionShape, btVector3(0, 0, 0));
+//    m_groundBody = new btRigidBody(rigidBodyCI);
+//    m_dynamicsWorld->addRigidBody(m_groundBody);
 
-    //m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
+    const TerrainProperty* terrainProperty = entity.getPropertyClass<TerrainProperty>("terrain");
+    if (terrainProperty) {
+        auto& terrain = terrainProperty->getData();
+        float res = (float)terrain.getResolution();
+        auto segments = terrain.getTerrain();
+        for (auto& row : segments) {
+            for (auto& entry : row.second) {
+                Mercator::Segment* segment = entry.second;
+                if (!segment->isValid()) {
+                    segment->populate();
+                }
+                btHeightfieldTerrainShape* terrainShape = new btHeightfieldTerrainShape(segment->getResolution(), segment->getResolution(), segment->getPoints(), 1, segment->getMin(), segment->getMax(), 1, PHY_FLOAT, false);
 
+                float xPos = row.first * res + (res * 0.5f);
+                float zPos = entry.first * res + (res * 0.5f);
+                float yPos = segment->getMin() + ((segment->getMax() - segment->getMin()) * 0.5f);
+                btDefaultMotionState* motionState = new btDefaultMotionState(btTransform(btQuaternion::getIdentity(), btVector3(xPos, yPos, zPos)));
+                btRigidBody::btRigidBodyConstructionInfo segmentCI(.0f, motionState, terrainShape);
+                btRigidBody* segmentBody = new btRigidBody(segmentCI);
+                m_dynamicsWorld->addRigidBody(segmentBody);
+            }
+        }
+    }
+
+//m_dynamicsWorld->setGravity(btVector3(0, -10, 0));
 }
 
 PhysicalDomain::~PhysicalDomain()
@@ -224,12 +252,12 @@ bool PhysicalDomain::isEntityVisibleFor(const LocatedEntity& observingEntity, co
         return true;
     }
 
-    //We need to check the distance to the entity being looked at, and make sure that both the looking entity and
-    //the entity being looked at belong to the same domain
+//We need to check the distance to the entity being looked at, and make sure that both the looking entity and
+//the entity being looked at belong to the same domain
     const Location* ancestor;
-    //We'll optimize for the case when a child entity is looking at the domain entity, by sending the looked at entity first, since this is the most common case.
-    //The squareDistanceWithAncestor() method will first try to find the first entity being sent by walking upwards from the second entity being sent (if
-    //it fails it will try other approaches).
+//We'll optimize for the case when a child entity is looking at the domain entity, by sending the looked at entity first, since this is the most common case.
+//The squareDistanceWithAncestor() method will first try to find the first entity being sent by walking upwards from the second entity being sent (if
+//it fails it will try other approaches).
     float distance = squareDistanceWithAncestor(observedEntity.m_location, observingEntity.m_location, &ancestor);
     if (ancestor == nullptr) {
         //No common ancestor found
@@ -244,9 +272,9 @@ bool PhysicalDomain::isEntityVisibleFor(const LocatedEntity& observingEntity, co
             ancestor = &ancestor->m_loc->m_location;
         }
     }
-    //If we get here we know that the ancestor is a child of the domain entity.
-    //Now we need to determine if the looking entity can see the looked at entity. The default way of doing this is by comparing the size of the looked at entity with the distance,
-    //but this check can be overridden if the looked at entity is either wielded or outfitted by a parent entity.
+//If we get here we know that the ancestor is a child of the domain entity.
+//Now we need to determine if the looking entity can see the looked at entity. The default way of doing this is by comparing the size of the looked at entity with the distance,
+//but this check can be overridden if the looked at entity is either wielded or outfitted by a parent entity.
     if ((observedEntity.m_location.squareBoxSize() / distance) > consts::square_sight_factor) {
         return true;
     }
@@ -258,11 +286,11 @@ void PhysicalDomain::calculateVisibility(std::vector<Root>& appear, std::vector<
 
     float fromSquSize = moved_entity.m_location.squareBoxSize();
 
-    //We need to get the position of the moved entity in relation to the parent.
+//We need to get the position of the moved entity in relation to the parent.
     const Point3D new_pos = relativePos(parent.m_location, moved_entity.m_location);
     const Point3D old_pos = relativePos(parent.m_location, old_loc);
 
-    //For now we'll only consider movement within the same loc. This should change as we extend the domain code.
+//For now we'll only consider movement within the same loc. This should change as we extend the domain code.
     assert(parent.m_contains != nullptr);
     for (const LocatedEntity* other : *parent.m_contains) {
         if (other == &moved_entity) {
@@ -353,7 +381,7 @@ void PhysicalDomain::processDisappearanceOfEntity(const LocatedEntity& moved_ent
     this_ent->setId(moved_entity.getId());
     this_ent->setStamp(moved_entity.getSeq());
 
-    //We need to get the position of the moved entity in relation to the parent.
+//We need to get the position of the moved entity in relation to the parent.
     const Point3D old_pos = relativePos(m_entity.m_location, old_loc);
 
     assert(m_entity.m_contains != nullptr);
@@ -384,14 +412,14 @@ float PhysicalDomain::checkCollision(LocatedEntity& entity, CollisionData& colli
     assert(entity.m_location.m_loc->m_contains != 0);
     assert(entity.m_location.m_pos.isValid());
     assert(entity.m_location.m_velocity.isValid());
-    // Check to see whether a collision is going to occur from now until the
-    // the next tick in consts::move_tick seconds
+// Check to see whether a collision is going to occur from now until the
+// the next tick in consts::move_tick seconds
     float coll_time = consts::move_tick;
     debug_print("checking " << entity.getId() << entity.m_location.pos() << entity.m_location.velocity() << " in " << entity.m_location.m_loc->getId() << " against");
     collisionData.collEntity = nullptr;
     collisionData.isCollision = false;
-    // Check against everything within the current container
-    // If this entity doesn't have a bbox, it can't collide currently.
+// Check against everything within the current container
+// If this entity doesn't have a bbox, it can't collide currently.
     if (!entity.m_location.bBox().isValid()) {
         return coll_time;
     }
@@ -482,6 +510,22 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
 {
     assert(m_entries.find(entity.getIntId()) == m_entries.end());
 
+
+    float mass = 0;
+
+    if (entity.getType()->isTypeOf("creator")) {
+        mass = 1.0f;
+    }
+
+    auto massProp = entity.getPropertyType<float>("mass");
+    if (massProp) {
+        mass = massProp->data();
+    }
+
+    if (mass == 0) {
+        return;
+    }
+
     BulletEntry entry;
     entry.entity = &entity;
 
@@ -496,12 +540,7 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
     auto btSize = Convert::toBullet(size);
     entry.collisionShape = new btBoxShape(btSize);
 
-    float mass = 1.0f;
 
-    auto massProp = entity.getPropertyType<float>("mass");
-    if (massProp) {
-        mass = massProp->data();
-    }
 
     btVector3 inertia;
     entry.collisionShape->calculateLocalInertia(mass, inertia);
@@ -532,10 +571,10 @@ void PhysicalDomain::addEntity(LocatedEntity& entity)
         entry.rigidBody->setLinearVelocity(Convert::toBullet(propelProp->data()));
     }
 
-    //entry.rigidBody->setLinearVelocity(btVector3(100, 0, 0));
+//entry.rigidBody->setLinearVelocity(btVector3(100, 0, 0));
 
     m_dynamicsWorld->addRigidBody(entry.rigidBody);
-    //entry.rigidBody->activate();
+//entry.rigidBody->activate();
 
     m_entries.insert(std::make_pair(entity.getIntId(), entry));
 

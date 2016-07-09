@@ -78,8 +78,8 @@ class PhysicalDomain: public Domain {
 
         int m_ticksPerSecond;
 
-        btCollisionShape* m_groundCollisionShape;
-        btRigidBody* m_groundBody;
+        //btCollisionShape* m_groundCollisionShape;
+        //btRigidBody* m_groundBody;
 
         /**
          * @brief Calculates visibility changes for the moved entity, processing the children of the "parent" parameter.
